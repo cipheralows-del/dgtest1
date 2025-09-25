@@ -13,7 +13,6 @@
     p { margin-top: 20px; font-size: 16px; color: #333; }
     b { color: #1a73e8; }
 
-    /* Styles pour la boîte déroulante */
     .accordion { 
         background-color: #000; 
         color: #fff; 
@@ -66,11 +65,13 @@
         </div>
     </div>
 
-    <!-- Ancien menu déroulant -->
+    <!-- Menu informations mis à jour -->
     <button class="accordion">Informations sur le fonctionnement des cachets ActeursPros</button>
     <div class="panel">
         <p>
-        Une fois que les cachets ActeursPros sont ajoutés dans France Travail, les heures correspondantes (338 heures) ne sont supprimées qu'à partir du 10 décembre 2025. Avant cette date, aucune perte ne se produit. Ensuite, la suppression se fait à raison d’un cachet tous les 3 jours (1 cachet = 12 heures), jusqu’à atteindre 0h.
+        Les cachets ActeursPros ajoutés dans France Travail correspondent à <b>338 heures de cours (28 cachets)</b>. La suppression des cachets commence le <b>10 décembre 2025</b>, car France Travail calcule les heures à reculons à partir du <b>27 juin 2025</b>, dernier jour de cours de la 2ᵉ année.  
+        France Travail ne peut pas convertir plus de <b>338 heures de formation</b> en cachets.  
+        La suppression se fait ensuite progressivement à raison de <b>1 cachet tous les 3 jours</b>, chaque cachet correspondant à <b>12 heures</b> (en tenant compte qu’<b>1 jour d’ActeursPros en 2ᵉ année = 4h</b>). Ce processus continue jusqu’à ce que le nombre de cachets atteigne zéro.
         </p>
     </div>
 </div>
@@ -149,7 +150,6 @@
         detailsDatesDiv.innerHTML = html;
         menuDetails.style.display = 'block';
 
-        // ouvrir automatiquement le panel
         const detailsButton = menuDetails.querySelector('.accordion');
         const detailsPanel = detailsButton.nextElementSibling;
         if (detailsPanel) {
