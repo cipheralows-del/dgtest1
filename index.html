@@ -3,12 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <title>Calculateur d'heures</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
     body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0f4f8; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
     .container { background-color: #ffffff; padding: 30px 40px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); text-align: center; max-width: 600px; width: 96%; }
     h1 { color: #333333; margin-bottom: 20px; font-size: 20px; }
-    input[type="date"], #search { padding: 8px; width: 80%; margin-top: 10px; margin-bottom: 20px; border-radius: 5px; border: 1px solid #ccc; }
+    input[type="date"] { padding: 8px; width: 80%; margin-top: 10px; margin-bottom: 20px; border-radius: 5px; border: 1px solid #ccc; }
     button { background-color: #4CAF50; color: white; padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; margin: 5px; }
     button:hover { background-color: #45a049; }
     p { margin-top: 20px; font-size: 16px; color: #333; }
@@ -26,7 +25,6 @@
     .mini-table .date { width: 40%; }
     .mini-table .cachets { width: 30%; text-align: right; }
     .mini-table .heures { width: 30%; text-align: right; }
-    #controls { display:none; margin-bottom:10px; }
 </style>
 </head>
 <body>
@@ -40,10 +38,6 @@
 
     <!-- Menu Détails -->
     <div id="menu-details">
-        <div id="controls">
-            <input type="text" id="search" placeholder="Rechercher une date...">
-            <button id="btn-pdf">Exporter PDF</button>
-        </div>
         <button class="accordion">Détails précis des dates</button>
         <div class="panel">
             <div id="detailsDates" class="dates-list"></div>
@@ -61,102 +55,96 @@
 
 <script>
 (function(){
-    const HEURES_INITIALES=338, HEURES_PAR_CACHET=12, PERIODE_JOURS=3;
-    const DATE_DEBUT_SUPPRESSION=new Date('2025-12-10'); // 10 décembre 2025
+    const HEURES_INITIALES = 338;
+    const HEURES_PAR_CACHET = 12;
+    const PERIODE_JOURS = 3;
+    const DATE_DEBUT_SUPPRESSION = new Date('2025-12-10');
 
-    const btnCalc=document.getElementById('btn-calcul');
-    const btnReset=document.getElementById('btn-reset');
-    const inputDate=document.getElementById('date_depart');
-    const resultat=document.getElementById('resultat');
-    const detailsDatesDiv=document.getElementById('detailsDates');
-    const menuDetails=document.getElementById('menu-details');
-    const controls=document.getElementById('controls');
-    const searchInput=document.getElementById('search');
-    const btnPDF=document.getElementById('btn-pdf');
+    const btnCalc = document.getElementById('btn-calcul');
+    const btnReset = document.getElementById('btn-reset');
+    const inputDate = document.getElementById('date_depart');
+    const resultat = document.getElementById('resultat');
+    const detailsDatesDiv = document.getElementById('detailsDates');
+    const menuDetails = document.getElementById('menu-details');
 
     function formatDate(d){ return d.toLocaleDateString('fr-FR'); }
 
     function genererTableau(dateDepartInput){
-        const dateDepart=new Date(dateDepartInput);
-        // Cas date avant le 10 décembre 2025
+        const dateDepart = new Date(dateDepartInput);
+
         if(dateDepart < DATE_DEBUT_SUPPRESSION){
-            resultat.innerHTML=`Aucune perte de cachets, la suppression commence à partir du <b>${formatDate(DATE_DEBUT_SUPPRESSION)}</b>.`;
-            detailsDatesDiv.innerHTML='';
-            menuDetails.style.display='block';
-            controls.style.display='none';
+            // avant 10 décembre 2025
+            resultat.innerHTML = `Aucune perte de cachets, la suppression commence à partir du <b>${formatDate(DATE_DEBUT_SUPPRESSION)}</b>.`;
+            detailsDatesDiv.innerHTML = '';
+            menuDetails.style.display = 'block';
             return;
         }
 
-        // Date postérieure ou égale au 10 décembre 2025
-        // Calcul du nombre de jours déjà passés depuis le début de la suppression
-        let joursDepasses=Math.floor((dateDepart-DATE_DEBUT_SUPPRESSION)/(1000*60*60*24));
-        if(joursDepasses<0) joursDepasses=0;
+        // calculs pour dates à partir du 10 décembre 2025
+        let joursDepasses = Math.floor((dateDepart - DATE_DEBUT_SUPPRESSION) / (1000*60*60*24));
+        if(joursDepasses < 0) joursDepasses = 0;
 
-        const periodesNecessaires=Math.ceil(HEURES_INITIALES/HEURES_PAR_CACHET);
-        const joursTotaux=periodesNecessaires*PERIODE_JOURS;
+        const periodesNecessaires = Math.ceil(HEURES_INITIALES / HEURES_PAR_CACHET);
+        const joursTotaux = periodesNecessaires * PERIODE_JOURS;
 
-        // Heures restantes au moment de la date saisie
-        const suppressionsDepassees=Math.floor(joursDepasses/PERIODE_JOURS);
-        let heuresRestantes=HEURES_INITIALES-suppressionsDepassees*HEURES_PAR_CACHET;
-        if(heuresRestantes<0) heuresRestantes=0;
-        const cachetsRestants=Math.floor(heuresRestantes/HEURES_PAR_CACHET);
+        // heures et cachets restants au moment de la date saisie
+        const suppressionsDepassees = Math.floor(joursDepasses / PERIODE_JOURS);
+        let heuresRestantes = HEURES_INITIALES - suppressionsDepassees * HEURES_PAR_CACHET;
+        if(heuresRestantes < 0) heuresRestantes = 0;
+        let cachetsRestants = Math.floor(heuresRestantes / HEURES_PAR_CACHET);
 
-        // Date finale de suppression complète
-        const dateFinale=new Date(dateDepart);
-        dateFinale.setDate(dateFinale.getDate()+ (joursTotaux - suppressionsDepassees*PERIODE_JOURS));
+        const dateFinale = new Date(dateDepart);
+        dateFinale.setDate(dateFinale.getDate() + (joursTotaux - suppressionsDepassees * PERIODE_JOURS));
 
-        // affichage résultat principal
-        resultat.innerHTML=`Nombre de jours avant 0h depuis la date saisie : <b>${joursTotaux - suppressionsDepassees*PERIODE_JOURS}</b> jours<br>
+        resultat.innerHTML = `Nombre de jours avant 0h depuis la date saisie : <b>${joursTotaux - suppressionsDepassees * PERIODE_JOURS}</b> jours<br>
             Date à laquelle tu atteindras 0h : <b>${formatDate(dateFinale)}</b>`;
 
-        // génération tableau jour par jour à partir de la date saisie
-        let html='<table class="mini-table"><tbody>';
-        let heuresCourantes=heuresRestantes;
-        let cachetsCourants=cachetsRestants;
-        for(let i=0;i<joursTotaux - suppressionsDepassees*PERIODE_JOURS;i++){
-            const currentDate=new Date(dateDepart);
-            currentDate.setDate(currentDate.getDate()+i);
-            if(i!==0 && i%PERIODE_JOURS===0 && cachetsCourants>0){
-                cachetsCourants-=1;
-                heuresCourantes-=HEURES_PAR_CACHET;
+        // tableau jour par jour
+        let html = '<table class="mini-table"><tbody>';
+        let heuresCourantes = heuresRestantes;
+        let cachetsCourants = cachetsRestants;
+        for(let i=0; i<joursTotaux - suppressionsDepassees*PERIODE_JOURS; i++){
+            const currentDate = new Date(dateDepart);
+            currentDate.setDate(currentDate.getDate() + i);
+            if(i!==0 && i % PERIODE_JOURS === 0 && cachetsCourants>0){
+                cachetsCourants -= 1;
+                heuresCourantes -= HEURES_PAR_CACHET;
                 if(heuresCourantes<0) heuresCourantes=0;
             }
-            html+=`<tr><td class="date">${formatDate(currentDate)}</td>
-                   <td class="cachets">${cachetsCourants} cachet${cachetsCourants>1?'s':''}</td>
-                   <td class="heures">${heuresCourantes}h</td></tr>`;
+            html += `<tr><td class="date">${formatDate(currentDate)}</td>
+                     <td class="cachets">${cachetsCourants} cachet${cachetsCourants>1?'s':''}</td>
+                     <td class="heures">${heuresCourantes}h</td></tr>`;
         }
-        html+='</tbody></table>';
-        detailsDatesDiv.innerHTML=html;
-        menuDetails.style.display='block';
-        controls.style.display='block';
-
-        const detailsButton=menuDetails.querySelector('.accordion');
-        const detailsPanel=detailsButton.nextElementSibling;
-        if(detailsPanel){ detailsPanel.style.display='block'; detailsButton.classList.add('active'); }
+        html += '</tbody></table>';
+        detailsDatesDiv.innerHTML = html;
+        menuDetails.style.display = 'block';
     }
 
-    btnCalc.addEventListener('click',()=>{ 
+    btnCalc.addEventListener('click', ()=>{
         if(!inputDate.value){ alert('Veuillez entrer une date !'); return; }
         genererTableau(inputDate.value);
     });
 
-    btnReset.addEventListener('click',()=>{
-        inputDate.value=''; resultat.innerHTML=''; detailsDatesDiv.innerHTML='';
-        menuDetails.style.display='none'; controls.style.display='none';
-        const panels=document.querySelectorAll('.panel'); panels.forEach(p=>p.style.display='none');
-        const accs=document.querySelectorAll('.accordion'); accs.forEach(a=>a.classList.remove('active'));
+    btnReset.addEventListener('click', ()=>{
+        inputDate.value = '';
+        resultat.innerHTML = '';
+        detailsDatesDiv.innerHTML = '';
+        menuDetails.style.display = 'none';
+        const panels = document.querySelectorAll('.panel'); panels.forEach(p => p.style.display='none');
+        const accs = document.querySelectorAll('.accordion'); accs.forEach(a => a.classList.remove('active'));
     });
 
-    // Filtre direct
-    searchInput.addEventListener('input',()=>{
-        const filter=searchInput.value.toLowerCase();
-        const rows=detailsDatesDiv.querySelectorAll('tr');
-        rows.forEach(r=>{
-            r.style.display=r.textContent.toLowerCase().includes(filter)?'':'none';
-        });
+    // Accordéons
+    document.querySelector('.container').addEventListener('click', e=>{
+        if(e.target.classList.contains('accordion')){
+            const panel = e.target.nextElementSibling;
+            if(!panel) return;
+            const isOpen = panel.style.display === 'block';
+            panel.style.display = isOpen ? 'none' : 'block';
+            e.target.classList.toggle('active', !isOpen);
+        }
     });
-
-    // Export PDF
-    btnPDF.addEventListener('click',()=>{
-        const { jsPDF } = window.jspdf;
-        const doc=new jsPDF('
+})();
+</script>
+</body>
+</html>
