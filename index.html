@@ -83,7 +83,7 @@
     const HEURES_INITIALES = 338;
     const HEURES_PAR_CACHET = 12;
     const PERIODE_JOURS = 3;
-    const DATE_DEBUT_SUPPRESSION = new Date("2026-01-06"); // nouvelle date de début
+    const DATE_DEBUT_SUPPRESSION = new Date("2026-01-06"); // point de départ des suppressions
 
     const btnCalc = document.getElementById('btn-calcul');
     const btnReset = document.getElementById('btn-reset');
@@ -97,64 +97,85 @@
     }
 
     function calculer() {
-        const dateDepartInput = inputDate.value;
-        if (!dateDepartInput) {
-            alert("Veuillez entrer une date !");
-            return;
-        }
+        if (!inputDate.value) { alert("Veuillez entrer une date !"); return; }
+        const dateDepart = new Date(inputDate.value);
+        // normaliser heures pour éviter problème d'heure locale (mettre à midi)
+        dateDepart.setHours(12,0,0,0);
 
-        const dateDepart = new Date(dateDepartInput);
-
-        // Cas 1 : avant le 6 janvier 2026
+        // si la date saisie est avant la date de début des suppressions
         if (dateDepart < DATE_DEBUT_SUPPRESSION) {
-            resultat.innerHTML = "Aucune perte de cachets, la suppression commence à partir du <b>6 janvier 2026</b>.";
-            menuDetails.style.display = "none";
+            resultat.innerHTML = `Aucune perte de cachets, la suppression commence à partir du <b>${formatDate(DATE_DEBUT_SUPPRESSION)}</b>.`;
+            detailsDatesDiv.innerHTML = '';
+            menuDetails.style.display = 'block';
+            // ouvrir le panel détails pour visibilité
+            openDetailsPanel();
             return;
         }
 
-        // Cas 2 : après ou le 6 janvier 2026
-        const periodesNecessaires = Math.ceil(HEURES_INITIALES / HEURES_PAR_CACHET);
-        const joursTotaux = periodesNecessaires * PERIODE_JOURS;
+        // calcul du nombre total de périodes (on arrondit pour inclure la fraction)
+        const periodesNecessaires = Math.ceil(HEURES_INITIALES / HEURES_PAR_CACHET); // ex: 29
+        const joursTotaux = periodesNecessaires * PERIODE_JOURS; // ex: 87
 
-        // Nombre de jours déjà écoulés depuis le début de la suppression
-        const joursEcoules = Math.floor((dateDepart - DATE_DEBUT_SUPPRESSION) / (1000 * 60 * 60 * 24));
-        const suppressionsDeja = Math.floor(joursEcoules / PERIODE_JOURS);
+        // jours écoulés depuis le début de la suppression jusqu'à la date saisie
+        const msParJour = 1000 * 60 * 60 * 24;
+        const joursEcoules = Math.floor((dateDepart - DATE_DEBUT_SUPPRESSION) / msParJour);
+        const suppressionsDeja = Math.floor(Math.max(0, joursEcoules) / PERIODE_JOURS);
 
+        // heures et cachets restant AU MOMENT de la date saisie (après suppression déjà effectuée)
         let heuresRestantes = HEURES_INITIALES - (suppressionsDeja * HEURES_PAR_CACHET);
         if (heuresRestantes < 0) heuresRestantes = 0;
+        let cachetsRestants = Math.floor(heuresRestantes / HEURES_PAR_CACHET);
 
-        const dateFinale = new Date(DATE_DEBUT_SUPPRESSION);
-        dateFinale.setDate(DATE_DEBUT_SUPPRESSION.getDate() + joursTotaux);
+        // jours restants à partir de la date saisie avant d'atteindre 0h
+        const joursRestants = Math.max(0, joursTotaux - suppressionsDeja * PERIODE_JOURS);
 
-        resultat.innerHTML = 
-            `Nombre de jours avant 0h : <b>${joursTotaux}</b> jours<br>
-             Date à laquelle tu atteindras 0h : <b>${formatDate(dateFinale)}</b>`;
+        // date finale (à partir de la date saisie)
+        const dateFinale = new Date(dateDepart);
+        dateFinale.setDate(dateFinale.getDate() + joursRestants);
 
-        let detailsHTML = '<table class="mini-table"><tbody>';
-        for (let i = 0; i <= joursTotaux; i++) {
-            const currentDate = new Date(DATE_DEBUT_SUPPRESSION);
-            currentDate.setDate(currentDate.getDate() + i);
+        // affichage principal
+        resultat.innerHTML = `Nombre de jours avant 0h depuis la date saisie : <b>${joursRestants}</b> jours<br>
+            Date à laquelle tu atteindras 0h : <b>${formatDate(dateFinale)}</b>`;
 
-            const suppressions = Math.floor(i / PERIODE_JOURS);
-            let heuresRestantesJour = HEURES_INITIALES - (suppressions * HEURES_PAR_CACHET);
-            if (heuresRestantesJour < 0) heuresRestantesJour = 0;
+        // génération du tableau jour par jour COMMENCANT À LA DATE SAISIE
+        let html = '<table class="mini-table"><tbody>';
+        let heuresCourantes = heuresRestantes;
+        let cachetsCourants = cachetsRestants;
 
-            const cachetsRestants = Math.floor(heuresRestantesJour / HEURES_PAR_CACHET);
+        // Si tout est déjà supprimé avant la date saisie, on affiche une ligne 0 / 0
+        if (heuresCourantes === 0 && cachetsCourants === 0 && joursRestants === 0) {
+            html += `<tr><td class="date">${formatDate(dateDepart)}</td><td class="cachets">0 cachet</td><td class="heures">0h</td></tr>`;
+        } else {
+            for (let i = 0; i < joursRestants; i++) {
+                const currentDate = new Date(dateDepart);
+                currentDate.setDate(currentDate.getDate() + i);
 
-            detailsHTML +=
-                `<tr>
-                    <td class="date">${formatDate(currentDate)}</td>
-                    <td class="cachets">${cachetsRestants} cachet${cachetsRestants > 1 ? 's' : ''}</td>
-                    <td class="heures">${heuresRestantesJour}h</td>
-                </tr>`;
+                // appliquer la suppression tous les PERIODE_JOURS (sauf à l'index 0, qui représente l'état au jour saisi)
+                if (i !== 0 && i % PERIODE_JOURS === 0 && cachetsCourants > 0) {
+                    cachetsCourants -= 1;
+                    heuresCourantes -= HEURES_PAR_CACHET;
+                    if (heuresCourantes < 0) heuresCourantes = 0;
+                }
+
+                html += `<tr>
+                            <td class="date">${formatDate(currentDate)}</td>
+                            <td class="cachets">${cachetsCourants} cachet${cachetsCourants>1?'s':''}</td>
+                            <td class="heures">${heuresCourantes}h</td>
+                         </tr>`;
+            }
         }
-        detailsHTML += '</tbody></table>';
 
-        detailsDatesDiv.innerHTML = detailsHTML;
+        html += '</tbody></table>';
+
+        detailsDatesDiv.innerHTML = html;
         menuDetails.style.display = 'block';
+        openDetailsPanel();
+    }
 
+    function openDetailsPanel() {
         const detailsButton = menuDetails.querySelector('.accordion');
-        const detailsPanel = detailsButton ? detailsButton.nextElementSibling : null;
+        if (!detailsButton) return;
+        const detailsPanel = detailsButton.nextElementSibling;
         if (detailsPanel) {
             detailsPanel.style.display = 'block';
             detailsButton.classList.add('active');
@@ -172,19 +193,20 @@
         accs.forEach(a => a.classList.remove('active'));
     }
 
+    // Accordéons (gestion d'ouverture/fermeture)
     document.querySelector('.container').addEventListener('click', function(e) {
-        const target = e.target;
-        if (target.classList && target.classList.contains('accordion')) {
-            const panel = target.nextElementSibling;
+        if (e.target.classList.contains('accordion')) {
+            const panel = e.target.nextElementSibling;
             if (!panel) return;
             const isOpen = panel.style.display === 'block';
             panel.style.display = isOpen ? 'none' : 'block';
-            target.classList.toggle('active', !isOpen);
+            e.target.classList.toggle('active', !isOpen);
         }
     });
 
     btnCalc.addEventListener('click', calculer);
     btnReset.addEventListener('click', reinitialiser);
+
 })();
 </script>
 </body>
