@@ -13,11 +13,33 @@
     p { margin-top: 20px; font-size: 16px; color: #333; }
     b { color: #1a73e8; }
 
+    /* Styles pour la boîte déroulante */
     .accordion { 
-        background-color: #000; color: #fff; cursor: pointer; padding: 15px; width: 100%; border: none; border-radius: 8px; text-align: left; outline: none; font-size: 16px; transition: 0.2s; margin-top: 20px; 
+        background-color: #000; 
+        color: #fff; 
+        cursor: pointer; 
+        padding: 15px; 
+        width: 100%; 
+        border: none; 
+        border-radius: 8px; 
+        text-align: left; 
+        outline: none; 
+        font-size: 16px; 
+        transition: 0.2s; 
+        margin-top: 20px; 
     }
-    .active, .accordion:hover { background-color: #222; }
-    .panel { padding: 10px 15px; display: none; background-color: white; overflow: auto; text-align: left; margin-top: 5px; border-radius: 8px; border: 1px solid #ccc; max-height: 300px; }
+    .active, .accordion:hover { background-color: #222; } 
+    .panel { 
+        padding: 10px 15px; 
+        display: none; 
+        background-color: white; 
+        overflow: auto; 
+        text-align: left; 
+        margin-top: 5px; 
+        border-radius: 8px; 
+        border: 1px solid #ccc; 
+        max-height: 300px; 
+    }
     .dates-list { font-size: 14px; line-height: 1.6; white-space: nowrap; }
     #menu-details { display: none; }
     .mini-table { width: 100%; border-collapse: collapse; font-size: 13px; }
@@ -31,12 +53,12 @@
 <div class="container">
     <h1>Calculateur d’heures avant 0h – suppression des cachets ActeursPros</h1>
     <label for="date_depart">Date d’ajout des cachets ActeursPros sur France Travail</label><br>
-    <input type="date" id="date_depart"><br>
+    <input type="date" id="date_depart" aria-label="Date d'ajout"><br>
     <button id="btn-calcul">Calculer</button>
     <button id="btn-reset">Réinitialiser</button>
     <p id="resultat" aria-live="polite"></p>
 
-    <!-- Menu Détails -->
+    <!-- Nouveau menu déroulant -->
     <div id="menu-details">
         <button class="accordion">Détails précis des dates</button>
         <div class="panel">
@@ -47,14 +69,14 @@
     <!-- Ancien menu déroulant -->
     <button class="accordion">Informations sur le fonctionnement des cachets ActeursPros</button>
     <div class="panel">
-        <p id="info-text">
-        <!-- texte à mettre à jour plus tard -->
+        <p>
+        Une fois que les cachets ActeursPros sont ajoutés dans France Travail, les heures correspondantes (338 heures) ne sont supprimées qu'à partir du 10 décembre 2025. Avant cette date, aucune perte ne se produit. Ensuite, la suppression se fait à raison d’un cachet tous les 3 jours (1 cachet = 12 heures), jusqu’à atteindre 0h.
         </p>
     </div>
 </div>
 
 <script>
-(function(){
+(function() {
     const HEURES_INITIALES = 338;
     const HEURES_PAR_CACHET = 12;
     const PERIODE_JOURS = 3;
@@ -67,83 +89,100 @@
     const detailsDatesDiv = document.getElementById('detailsDates');
     const menuDetails = document.getElementById('menu-details');
 
-    function formatDate(d){ return d.toLocaleDateString('fr-FR'); }
+    function formatDate(d) { return d.toLocaleDateString('fr-FR'); }
 
-    function genererTableau(dateDepartInput){
-        const dateDepart = new Date(dateDepartInput);
+    function calculer() {
+        const dateDepart = new Date(inputDate.value);
+        if (!inputDate.value) { alert("Veuillez entrer une date !"); return; }
 
-        if(dateDepart < DATE_DEBUT_SUPPRESSION){
-            // avant 10 décembre 2025
+        // Cas avant le 10 décembre 2025
+        if (dateDepart < DATE_DEBUT_SUPPRESSION) {
             resultat.innerHTML = `Aucune perte de cachets, la suppression commence à partir du <b>${formatDate(DATE_DEBUT_SUPPRESSION)}</b>.`;
             detailsDatesDiv.innerHTML = '';
             menuDetails.style.display = 'block';
             return;
         }
 
-        // calculs pour dates à partir du 10 décembre 2025
+        // Nombre de jours écoulés depuis le 10 décembre
         let joursDepasses = Math.floor((dateDepart - DATE_DEBUT_SUPPRESSION) / (1000*60*60*24));
-        if(joursDepasses < 0) joursDepasses = 0;
+        if (joursDepasses < 0) joursDepasses = 0;
 
         const periodesNecessaires = Math.ceil(HEURES_INITIALES / HEURES_PAR_CACHET);
         const joursTotaux = periodesNecessaires * PERIODE_JOURS;
 
-        // heures et cachets restants au moment de la date saisie
+        // Heures et cachets restants à la date saisie
         const suppressionsDepassees = Math.floor(joursDepasses / PERIODE_JOURS);
         let heuresRestantes = HEURES_INITIALES - suppressionsDepassees * HEURES_PAR_CACHET;
-        if(heuresRestantes < 0) heuresRestantes = 0;
+        if (heuresRestantes < 0) heuresRestantes = 0;
         let cachetsRestants = Math.floor(heuresRestantes / HEURES_PAR_CACHET);
 
+        const joursRestants = joursTotaux - suppressionsDepassees * PERIODE_JOURS;
         const dateFinale = new Date(dateDepart);
-        dateFinale.setDate(dateFinale.getDate() + (joursTotaux - suppressionsDepassees * PERIODE_JOURS));
+        dateFinale.setDate(dateFinale.getDate() + joursRestants);
 
-        resultat.innerHTML = `Nombre de jours avant 0h depuis la date saisie : <b>${joursTotaux - suppressionsDepassees * PERIODE_JOURS}</b> jours<br>
+        resultat.innerHTML = `Nombre de jours avant 0h depuis la date saisie : <b>${joursRestants}</b> jours<br>
             Date à laquelle tu atteindras 0h : <b>${formatDate(dateFinale)}</b>`;
 
-        // tableau jour par jour
+        // Génération du tableau jour par jour
         let html = '<table class="mini-table"><tbody>';
         let heuresCourantes = heuresRestantes;
         let cachetsCourants = cachetsRestants;
-        for(let i=0; i<joursTotaux - suppressionsDepassees*PERIODE_JOURS; i++){
+
+        for (let i = 0; i < joursRestants; i++) {
             const currentDate = new Date(dateDepart);
             currentDate.setDate(currentDate.getDate() + i);
-            if(i!==0 && i % PERIODE_JOURS === 0 && cachetsCourants>0){
+
+            if (i !== 0 && i % PERIODE_JOURS === 0 && cachetsCourants > 0) {
                 cachetsCourants -= 1;
                 heuresCourantes -= HEURES_PAR_CACHET;
-                if(heuresCourantes<0) heuresCourantes=0;
+                if (heuresCourantes < 0) heuresCourantes = 0;
             }
-            html += `<tr><td class="date">${formatDate(currentDate)}</td>
-                     <td class="cachets">${cachetsCourants} cachet${cachetsCourants>1?'s':''}</td>
-                     <td class="heures">${heuresCourantes}h</td></tr>`;
+
+            html += `<tr>
+                        <td class="date">${formatDate(currentDate)}</td>
+                        <td class="cachets">${cachetsCourants} cachet${cachetsCourants>1?'s':''}</td>
+                        <td class="heures">${heuresCourantes}h</td>
+                     </tr>`;
         }
         html += '</tbody></table>';
+
         detailsDatesDiv.innerHTML = html;
         menuDetails.style.display = 'block';
+
+        // ouvrir automatiquement le panel
+        const detailsButton = menuDetails.querySelector('.accordion');
+        const detailsPanel = detailsButton.nextElementSibling;
+        if (detailsPanel) {
+            detailsPanel.style.display = 'block';
+            detailsButton.classList.add('active');
+        }
     }
 
-    btnCalc.addEventListener('click', ()=>{
-        if(!inputDate.value){ alert('Veuillez entrer une date !'); return; }
-        genererTableau(inputDate.value);
-    });
-
-    btnReset.addEventListener('click', ()=>{
-        inputDate.value = '';
-        resultat.innerHTML = '';
-        detailsDatesDiv.innerHTML = '';
-        menuDetails.style.display = 'none';
-        const panels = document.querySelectorAll('.panel'); panels.forEach(p => p.style.display='none');
-        const accs = document.querySelectorAll('.accordion'); accs.forEach(a => a.classList.remove('active'));
-    });
+    function reinitialiser() {
+        inputDate.value = "";
+        resultat.innerHTML = "";
+        detailsDatesDiv.innerHTML = "";
+        menuDetails.style.display = "none";
+        const panels = document.querySelectorAll('.panel');
+        panels.forEach(p => p.style.display = 'none');
+        const accs = document.querySelectorAll('.accordion');
+        accs.forEach(a => a.classList.remove('active'));
+    }
 
     // Accordéons
-    document.querySelector('.container').addEventListener('click', e=>{
-        if(e.target.classList.contains('accordion')){
+    document.querySelector('.container').addEventListener('click', function(e) {
+        if (e.target.classList.contains('accordion')) {
             const panel = e.target.nextElementSibling;
-            if(!panel) return;
+            if (!panel) return;
             const isOpen = panel.style.display === 'block';
             panel.style.display = isOpen ? 'none' : 'block';
             e.target.classList.toggle('active', !isOpen);
         }
     });
+
+    btnCalc.addEventListener('click', calculer);
+    btnReset.addEventListener('click', reinitialiser);
+
 })();
 </script>
 </body>
